@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Vingeren</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vingeren">
+<meta name="theme-color" content="#14213D">
+<style>
+@font-face{font-family:"Bricolage Grotesque";src:url(fonts/bricolage-grotesque-latin-400-normal.woff2) format("woff2");font-weight:400;font-display:block}
+@font-face{font-family:"Bricolage Grotesque";src:url(fonts/bricolage-grotesque-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:block}
+@font-face{font-family:"Bricolage Grotesque";src:url(fonts/bricolage-grotesque-latin-800-normal.woff2) format("woff2");font-weight:800;font-display:block}
+</style>
+<style>
+:root{
+  color-scheme: light dark;
+  --sheet-bg:#FFFFFF; --sheet-fg:#1A1830; --sheet-muted:#6B6880; --sheet-line:#E6E3EE;
+  --accent:#5B3DF5; --accent-fg:#FFFFFF;
+  --skin-bg:#14213D; --skin-fg:#F4F4F8;
+  --font:"Bricolage Grotesque", ui-rounded, system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --sheet-bg:#1C1A2B; --sheet-fg:#F1EFF8; --sheet-muted:#A29FB5; --sheet-line:#2E2B42;
+    --accent:#8F7BFF; --accent-fg:#120F24;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --sheet-bg:#1C1A2B; --sheet-fg:#F1EFF8; --sheet-muted:#A29FB5; --sheet-line:#2E2B42;
+  --accent:#8F7BFF; --accent-fg:#120F24;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  height:100%;margin:0;overflow:hidden;background:var(--skin-bg);color:var(--skin-fg);
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  font-family:var(--font);-webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:none;
+}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+.top{
+  position:fixed;top:0;left:0;right:0;
+  padding:calc(14px + env(safe-area-inset-top,0px)) 18px 0;
+  display:flex;align-items:center;justify-content:space-between;
+  transition:opacity .25s;
+}
+.brand{font-weight:800;font-size:22px;letter-spacing:-.02em;display:flex;align-items:center;gap:6px}
+.brand span{display:inline-block;transform:rotate(-12deg)}
+.kits-btn{
+  font:600 15px var(--font);color:var(--skin-bg);background:var(--skin-fg);
+  border:0;border-radius:999px;padding:9px 16px 9px 13px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.kits-btn svg{width:17px;height:17px}
+.bottom{
+  position:fixed;left:0;right:0;bottom:0;
+  padding:0 12px calc(16px + env(safe-area-inset-bottom,0px));
+  transition:opacity .25s;
+}
+.modes{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding:5px;width:max-content;max-width:100%;margin:0 auto;
+  border-radius:999px;background:color-mix(in srgb, var(--skin-fg) 9%, transparent);
+  border:1px solid color-mix(in srgb, var(--skin-fg) 13%, transparent)}
+.modes::-webkit-scrollbar{display:none}
+.mode{
+  flex:none;font:600 15px var(--font);color:var(--skin-fg);
+  background:transparent;
+  border:0;border-radius:999px;padding:10px 15px;cursor:pointer;transition:background .2s,color .2s;
+}
+.mode[aria-pressed="true"]{background:var(--skin-fg);color:var(--skin-bg)}
+.picks{align-items:center;margin-bottom:8px}
+.picks-label{font-weight:600;font-size:14px;opacity:.75;margin:0 4px 0 10px}
+.pick{min-width:44px;padding:8px 12px}
+.hidden{opacity:0;pointer-events:none}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.hint{
+  position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;pointer-events:none;padding:0 32px;transition:opacity .2s;
+}
+.hint h1{font-size:clamp(30px,8vw,52px);font-weight:800;line-height:1.02;letter-spacing:-.03em;margin:0 0 12px;max-width:12ch;text-wrap:balance}
+.hint p{font-size:17px;margin:0;opacity:.7}
+.caption{
+  position:fixed;left:0;right:0;top:calc(22px + env(safe-area-inset-top,0px));
+  text-align:center;font-weight:800;font-size:26px;letter-spacing:-.02em;pointer-events:none;transition:opacity .4s;
+}
+.caption small{display:block;font-weight:400;font-size:15px;opacity:.75;letter-spacing:0;margin-top:4px}
+
+/* Kit shop */
+.scrim{position:fixed;inset:0;background:rgba(10,8,20,.45);opacity:0;pointer-events:none;transition:opacity .25s}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;max-height:88%;margin:0 auto;max-width:560px;
+  background:var(--sheet-bg);color:var(--sheet-fg);border-radius:22px 22px 0 0;
+  transform:translateY(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1);
+  display:flex;flex-direction:column;touch-action:pan-y;-webkit-user-select:text;user-select:text;
+}
+.sheet.open{transform:none}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 6px}
+.sheet-head h2{margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em}
+.done{font:600 16px var(--font);background:none;border:0;color:var(--accent);cursor:pointer;padding:8px}
+.sheet-body{overflow-y:auto;padding:0 20px calc(24px + env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch}
+.note{font-size:14px;color:var(--sheet-muted);margin:0 0 8px;line-height:1.45}
+.sheet h3{font-size:17px;font-weight:600;margin:22px 0 6px}
+.row{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--sheet-line)}
+.swatch{width:56px;height:56px;border-radius:16px;flex:none;position:relative;overflow:hidden}
+.swatch i{position:absolute;width:20px;height:20px;border-radius:50%}
+.icon{width:56px;height:56px;border-radius:16px;flex:none;display:grid;place-items:center;
+  background:color-mix(in srgb, var(--accent) 14%, transparent);font-size:24px}
+.meta{flex:1;min-width:0}
+.meta b{display:block;font-size:17px;font-weight:600}
+.meta span{font-size:14px;color:var(--sheet-muted)}
+.preview{font:600 14px var(--font);background:none;border:0;color:var(--accent);padding:4px 0;cursor:pointer}
+.act{
+  font:600 15px var(--font);border:0;border-radius:999px;padding:9px 15px;cursor:pointer;flex:none;
+  background:var(--accent);color:var(--accent-fg);min-width:88px;
+}
+.act.ghost{background:color-mix(in srgb, var(--accent) 14%, transparent);color:var(--accent)}
+.act[disabled]{background:transparent;color:var(--sheet-muted);cursor:default}
+.custom{padding:0 0 10px 70px}
+.slot{display:flex;align-items:center;gap:6px;padding:8px 0;flex-wrap:wrap}
+.slot b{flex:1 1 100%;font-size:15px;font-weight:600;margin-bottom:2px}
+.slot small{display:block;font-size:13px;font-weight:400;color:var(--sheet-muted)}
+.mini{font:600 14px var(--font);border:0;border-radius:999px;padding:7px 12px;cursor:pointer;
+  background:color-mix(in srgb, var(--accent) 14%, transparent);color:var(--accent)}
+.mini.rec{background:#E5484D;color:#FFFFFF}
+.toast{
+  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);
+  background:var(--sheet-fg);color:var(--sheet-bg);font:600 15px var(--font);padding:11px 18px;border-radius:999px;
+  opacity:0;transition:.25s;pointer-events:none;white-space:nowrap;z-index:5;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion: reduce){ .sheet,.scrim,.toast{transition:none} }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="hint" id="hint">
+  <h1 id="hintTitle">Leg je vingers op het scherm</h1>
+  <p id="hintSub">Houd ze stil en de app kiest.</p>
+</div>
+<div class="caption hidden" id="caption"></div>
+
+<header class="top" id="top">
+  <div class="brand"><span>☝︎</span>Vingeren</div>
+  <button class="kits-btn" id="openShop"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4.5 7h11l-.9 9.2a1 1 0 0 1-1 .8H6.4a1 1 0 0 1-1-.8L4.5 7Z"/><path d="M7.5 7V5.5a2.5 2.5 0 0 1 5 0V7"/></svg>Kits</button>
+</header>
+
+<nav class="bottom" id="bottom" aria-label="Spelmodus">
+  <div class="modes picks" id="picks"></div>
+  <div class="modes" id="modes"></div>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shopTitle">
+  <div class="sheet-head">
+    <h2 id="shopTitle">Kits</h2>
+    <button class="done" id="closeShop">Klaar</button>
+  </div>
+  <div class="sheet-body" id="shopBody"></div>
+</section>
+<div class="toast" id="toast" role="status"></div>
+<input type="file" id="fileIn" accept="audio/*" hidden>
+
+<script>
+(() => {
+  // ---------- Data ----------
+  const SKINS = [
+    {id:'nacht', name:'Nacht', price:0, desc:'Standaard, altijd gratis', bg:'#14213D', fg:'#F4F4F8',
+      colors:['#FF5D73','#FFC145','#3DDC97','#4CC9F0','#B388FF','#FF8C42','#F9F871','#7AE7C7','#FF9ECF','#9AD1FF','#FFFFFF','#A0E426']},
+    {id:'neon', name:'Neon', price:1.49, desc:'Felle kleuren op zwart', bg:'#06010F', fg:'#F2EEFF',
+      colors:['#FF2BD6','#00F0FF','#B6FF00','#FFE600','#FF6A00','#8A5CFF','#00FF9C','#FF3B5C','#3DA5FF','#FFFFFF','#FF8FAB','#C2FF7A']},
+    {id:'snoep', name:'Snoepwinkel', price:1.49, desc:'Zachte pasteltinten', bg:'#FFE3EC', fg:'#5A1E3A',
+      colors:['#E8467C','#7A5CFA','#1FA97A','#F08A24','#2D8FE0','#C2409B','#D9A400','#14A3A3','#B5543A','#6A6FD8','#3E7C1F','#8C3BD1']},
+    {id:'kroeg', name:'Kroegavond', price:0.99, desc:'Wie haalt het volgende rondje?', bg:'#2B1608', fg:'#FCEBD0',
+      colors:['#F5B02E','#E8E1C8','#D9572B','#9FBF4A','#F07E5C','#C9A26B','#FFD86B','#7FC8B8','#E85D75','#B8A2E3','#6FA3D6','#D98FB0']},
+    {id:'kerst', name:'Kerst', price:0.99, desc:'Rood, goud en dennengroen', bg:'#0E3A2D', fg:'#FFF6E5',
+      colors:['#E63946','#F4C95D','#FFFFFF','#A8DADC','#FF8FA3','#C9A227','#F1FAEE','#FF5E5B','#9BE564','#FFD6A5','#6BCB77','#B5838D']}
+  ];
+  const SOUNDS = [
+    {id:'klassiek', name:'Klassiek', price:0, desc:'Zachte piepjes, gratis', icon:'🔔'},
+    {id:'stil', name:'Stil', price:0, desc:'Geen geluid', icon:'🤫'},
+    {id:'trommel', name:'Tromgeroffel', price:0.99, desc:'Roffel en bekkenslag', icon:'🥁'},
+    {id:'arcade', name:'Arcade', price:0.99, desc:'8-bit spelhal', icon:'👾'},
+    {id:'eigen', name:'Eigen geluiden', price:0, desc:'Neem je eigen geluid op of kies een bestand', icon:'🎙️'}
+  ];
+  const BUNDLE = {id:'alles', name:'Alles-bundel', price:3.99, desc:'Alle huidige én toekomstige kits', icon:'🎁'};
+  const MODES = [
+    {id:'winner', label:'Kiezen', need:2},
+    {id:'teams2', label:'2 teams', need:2, teams:2},
+    {id:'teams3', label:'3 teams', need:3, teams:3},
+    {id:'order', label:'Volgorde', need:2}
+  ];
+  const eur = p => '€' + p.toFixed(2).replace('.', ',');
+
+  // ---------- Saved state ----------
+  const KEY = 'wijsvinger-v1';
+  let save = {owned:[], skin:'nacht', sound:'klassiek', mode:'winner', pick:1};
+  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) save = Object.assign(save, s); } catch(e) {}
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch(e) {} };
+  const owns = () => true; // all kits temporarily free
+  const skin = () => SKINS.find(s => s.id === save.skin) || SKINS[0];
+  const mode = () => MODES.find(m => m.id === save.mode) || MODES[0];
+  const need = () => mode().id === 'winner' ? (save.pick || 1) + 1 : mode().need;
+
+  // ---------- Audio (synthesised, works offline) ----------
+  let ac = null;
+  function unlockAudio(){
+    if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+    if (ac && ac.state === 'suspended') ac.resume();
+    decodeCustom();
+  }
+  function tone(f, d, type='sine', v=.2, delay=0, f2){
+    if (!ac) return;
+    const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + d + .03);
+  }
+  function noise(d, v=.3, delay=0, hp=1000){
+    if (!ac) return;
+    const t = ac.currentTime + delay, len = Math.floor(ac.sampleRate * d);
+    const buf = ac.createBuffer(1, len, ac.sampleRate), data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = buf; f.type = 'highpass'; f.frequency.value = hp;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+    src.connect(f).connect(g).connect(ac.destination); src.start(t);
+  }
+  // ---------- Own sounds ----------
+  const SKEY = 'vingeren-sounds';
+  let custom = {add:null, win:null};
+  try { const c = JSON.parse(localStorage.getItem(SKEY)); if (c) custom = Object.assign(custom, c); } catch(e) {}
+  const buffers = {add:null, win:null};
+  let pickSlot = null, recorder = null, recSlot = null, recTimer = null;
+  function b64ToBuf(dataUrl){ const b = atob(dataUrl.split(',')[1]); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
+  function decodeCustom(){
+    if (!ac) return;
+    ['add','win'].forEach(slot => {
+      const src = custom[slot];
+      if (!src) { buffers[slot] = null; return; }
+      if (buffers[slot] && buffers[slot].src === src) return;
+      try { ac.decodeAudioData(b64ToBuf(src), buf => { buffers[slot] = {buf, src}; }, () => toast('Dit geluidsbestand kan niet worden afgespeeld')); } catch(e) {}
+    });
+  }
+  function playBuf(slot, preview){
+    unlockAudio();
+    const b = buffers[slot];
+    if (!ac || !b) { if (preview) toast('Even geduld, het geluid wordt geladen'); return false; }
+    const s = ac.createBufferSource(); s.buffer = b.buf; s.connect(ac.destination); s.start(); return true;
+  }
+  function setCustom(slot, dataUrl){
+    const prev = custom[slot]; custom[slot] = dataUrl;
+    try { localStorage.setItem(SKEY, JSON.stringify(custom)); }
+    catch(e) { custom[slot] = prev; toast('Dit geluid is te groot, kies een korter fragment'); return; }
+    buffers[slot] = null; decodeCustom();
+    if (dataUrl) { save.sound = 'eigen'; persist(); toast('Geluid opgeslagen'); }
+    renderShop();
+  }
+  function blobToCustom(slot, blob){
+    if (blob.size > 1.5e6) { toast('Kies een fragment van maximaal een paar seconden'); return; }
+    const r = new FileReader(); r.onload = () => setCustom(slot, r.result); r.readAsDataURL(blob);
+  }
+  async function toggleRecord(slot){
+    if (recorder) { recorder.stop(); return; }
+    if (!navigator.mediaDevices || !window.MediaRecorder) { toast('Opnemen kan hier niet, kies een bestand'); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      const chunks = [];
+      recorder = new MediaRecorder(stream); recSlot = slot;
+      recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(tr => tr.stop()); clearTimeout(recTimer);
+        const blob = new Blob(chunks, {type: recorder.mimeType || 'audio/mp4'});
+        recorder = null; recSlot = null; blobToCustom(slot, blob); renderShop();
+      };
+      recorder.start(); recTimer = setTimeout(() => { if (recorder) recorder.stop(); }, 4000);
+      renderShop();
+    } catch(e) { recorder = null; recSlot = null; toast('Geen toegang tot de microfoon, kies een bestand'); renderShop(); }
+  }
+
+  const PACKS = {
+    klassiek:{interval:280,
+      add:()=>tone(660,.09,'sine',.2), tick:()=>tone(990,.04,'sine',.1),
+      win:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.28,'triangle',.2,i*.09))},
+    stil:{interval:300, add(){}, tick(){}, win(){}},
+    trommel:{interval:70,
+      add:()=>tone(160,.14,'sine',.45,0,60), tick:()=>noise(.05,.12,0,1800),
+      win:()=>{ noise(.18,.4,0,700); tone(110,.5,'sine',.5,0,45); noise(1.2,.28,.02,4000); }},
+    arcade:{interval:200,
+      add:()=>tone(440,.08,'square',.07,0,880), tick:()=>tone(1250,.03,'square',.05),
+      win:()=>[392,523,659,784,1047,1319].forEach((f,i)=>tone(f,.1,'square',.07,i*.06))},
+    eigen:{interval:280,
+      add:()=>{ if (!playBuf('add')) tone(660,.09,'sine',.2); },
+      tick:()=>tone(990,.04,'sine',.1),
+      win:()=>{ if (!playBuf('win')) [523,659,784,1047].forEach((f,i)=>tone(f,.28,'triangle',.2,i*.09)); }}
+  };
+  const sfx = (name, packId) => { const p = PACKS[packId || save.sound] || PACKS.klassiek; p[name](); };
+
+  // ---------- Canvas ----------
+  // HD colour: on wide-gamut (Display P3) screens the palette is drawn in the P3 space, so colours look more vivid
+  const P3 = window.matchMedia('(color-gamut: p3)').matches && window.CSS && CSS.supports('color', 'color(display-p3 1 0 0)');
+  const hdCache = new Map();
+  const hd = hex => {
+    if (!P3 || !hex || hex[0] !== '#') return hex;
+    if (!hdCache.has(hex)) {
+      const v = [1,3,5].map(i => (parseInt(hex.slice(i,i+2),16)/255).toFixed(4));
+      hdCache.set(hex, `color(display-p3 ${v.join(' ')})`);
+    }
+    return hdCache.get(hex);
+  };
+  const canvas = document.getElementById('c');
+  let ctx = null;
+  try { ctx = canvas.getContext('2d', P3 ? {alpha:false, colorSpace:'display-p3'} : {alpha:false}); } catch(e) {}
+  if (!ctx) ctx = canvas.getContext('2d');
+  let W = 0, H = 0, dpr = 1;
+  function resize(){
+    // render at the screen's full pixel density, with whole-pixel sizes so edges stay razor sharp
+    dpr = Math.min(window.devicePixelRatio || 1, 4);
+    W = window.innerWidth; H = window.innerHeight;
+    const pw = Math.round(W * dpr), ph = Math.round(H * dpr);
+    if (canvas.width !== pw || canvas.height !== ph) { canvas.width = pw; canvas.height = ph; }
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(pw / W, 0, 0, ph / H, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  }
+  window.addEventListener('resize', resize);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+  resize();
+
+  // ---------- Game state ----------
+  const fingers = new Map();
+  let state = 'idle', lastChange = 0, countStart = 0, nextTick = 0, result = null, fadeStart = 0, holdStart = 0, mouseSeq = 0;
+  const COUNT_MS = 4200, SETTLE_MS = 700, FADE_MS = 650, HOLD_MS = 8000, MAX_FINGERS = 12;
+  const R0 = 36, RING = 15, LAP_MS = 1400; // circle radius, ring gap, one loading lap
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function freeColor(){
+    const used = new Set([...fingers.values()].map(f => f.color));
+    const pal = skin().colors;
+    return pal.find(c => !used.has(c)) || pal[fingers.size % pal.length];
+  }
+  function addFinger(id, x, y, mouse){
+    fingers.set(id, {x, y, color:freeColor(), born:performance.now(), mouse});
+    sfx('add'); haptic('tap'); changed();
+  }
+  // haptics: native iPhone taps in the app (Capacitor Haptics), vibration on Android browsers
+  function haptic(kind){
+    const H = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
+    try {
+      if (H) {
+        if (kind === 'pick') H.impact({style:'HEAVY'});
+        else H.impact({style:'LIGHT'});
+        return;
+      }
+      if (navigator.vibrate) navigator.vibrate(kind === 'pick' ? 60 : 12);
+    } catch(e) {}
+  }
+  function changed(){
+    if (state === 'result' || state === 'fading' || state === 'hold') return;
+    if (fingers.size >= need()) { state = 'waiting'; lastChange = performance.now(); }
+    else state = 'idle';
+    ui();
+  }
+  function shuffle(a){ for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; }
+  function decide(t){
+    const ids = shuffle([...fingers.keys()]), m = mode();
+    result = {mode:m, time:t};
+    if (m.id === 'winner') {
+      const k = Math.min(save.pick || 1, ids.length - 1);
+      result.chosen = new Set(ids.slice(0, k));
+      if (k === 1) result.winner = ids[0];
+    }
+    if (m.teams) { result.team = new Map(ids.map((id,i) => [id, i % m.teams])); }
+    if (m.id === 'order') result.rank = new Map(ids.map((id,i) => [id, i+1]));
+    state = 'result'; sfx('win');
+    haptic('pick');
+    ui();
+  }
+  function resetAll(){ fingers.clear(); state = 'idle'; result = null; ui(); }
+
+  // ---------- Input ----------
+  const pos = e => ({x:e.clientX, y:e.clientY});
+  let drag = null;
+  canvas.addEventListener('pointerdown', e => {
+    e.preventDefault(); unlockAudio();
+    const {x, y} = pos(e);
+    if (e.pointerType === 'mouse') {
+      if (state === 'result' || state === 'fading' || state === 'hold') { resetAll(); return; }
+      try { canvas.setPointerCapture(e.pointerId); } catch(_) {}
+      for (const [id, f] of fingers) if (f.mouse && Math.hypot(f.x-x, f.y-y) < 50) { drag = {id, x, y, moved:false, existing:true}; return; }
+      if (fingers.size >= MAX_FINGERS) return;
+      const nid = 'm' + (mouseSeq++);
+      addFinger(nid, x, y, true); drag = {id:nid, x, y, moved:true, existing:false}; return;
+    }
+    if (state === 'result') return;
+    if (state === 'hold' || state === 'fading') resetAll();
+    if (fingers.size >= MAX_FINGERS) return;
+    addFinger(e.pointerId, x, y, false);
+  });
+  canvas.addEventListener('pointermove', e => {
+    const {x, y} = pos(e);
+    if (e.pointerType === 'mouse') {
+      if (!drag) return;
+      const f = fingers.get(drag.id); if (!f) return;
+      if (Math.hypot(x - drag.x, y - drag.y) > 6) drag.moved = true;
+      if (drag.moved) { f.x = x; f.y = y; }
+      return;
+    }
+    const f = fingers.get(e.pointerId); if (!f || f.gone) return;
+    f.x = x; f.y = y;
+  });
+  function lift(e){
+    if (e.pointerType === 'mouse') {
+      if (drag && drag.existing && !drag.moved && state !== 'result') { fingers.delete(drag.id); changed(); }
+      drag = null; return;
+    }
+    const f = fingers.get(e.pointerId); if (!f) return;
+    if (state === 'result') {
+      f.gone = true;
+      if ([...fingers.values()].every(v => v.gone)) { state = 'hold'; holdStart = performance.now(); ui(); }
+      return;
+    }
+    if (state === 'fading' || state === 'hold') return;
+    fingers.delete(e.pointerId); changed();
+  }
+  canvas.addEventListener('pointerup', lift);
+  canvas.addEventListener('pointercancel', lift);
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  // stop the browser from scrolling or cancelling touches while fingers move
+  document.addEventListener('touchstart', e => { if (e.target === canvas) e.preventDefault(); }, {passive:false});
+  document.addEventListener('touchmove', e => { if (!(e.target.closest && e.target.closest('.sheet'))) e.preventDefault(); }, {passive:false});
+
+  // ---------- Drawing ----------
+  const hexRgb = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+  const ink = c => { const [r,g,b] = hexRgb(c); return (0.299*r+0.587*g+0.114*b)/255 > .6 ? '#17131F' : '#FFFFFF'; };
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+  const easeInOut = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
+  const easeBack = t => { const c = 1.7; return 1 + (c+1)*Math.pow(t-1,3) + c*Math.pow(t-1,2); };
+  function circle(x, y, r){ ctx.beginPath(); ctx.arc(x, y, Math.max(r,0), 0, Math.PI*2); }
+  function mix(hex, to, amt){ const a = hexRgb(hex), b = hexRgb(to); return `rgb(${a.map((v,i) => Math.round(v + (b[i]-v)*amt)).join(',')})`; }
+  const darkHex = c => '#' + hexRgb(c).map(v => Math.round(v * .68).toString(16).padStart(2, '0')).join('');
+  const lightHex = c => '#' + hexRgb(c).map(v => Math.round(v + (255 - v) * .5).toString(16).padStart(2, '0')).join('');
+  // flat 2D disc
+  function disc(x, y, r, color){
+    if (r <= 0) return;
+    ctx.fillStyle = hd(color); circle(x, y, r); ctx.fill();
+  }
+
+  function draw(t){
+    const s = skin();
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    ctx.fillStyle = hd(s.bg); ctx.fillRect(0, 0, W, H);
+    const alpha = state === 'fading' ? Math.max(0, 1 - (t - fadeStart)/FADE_MS) : 1;
+    ctx.globalAlpha = alpha;
+
+    // Winner: their colour floods the screen
+    if (result && result.winner) {
+      const w = fingers.get(result.winner);
+      const el = t - result.time;
+      // the others fade and shrink away first
+      const out = Math.min(1, el/275);
+      for (const [id, f] of fingers) {
+        if (id === result.winner || out >= 1) continue;
+        ctx.globalAlpha = alpha * (1 - out);
+        disc(f.x, f.y, R0 * (1 - .5*easeOut(out)), f.color, false);
+      }
+      ctx.globalAlpha = alpha;
+      if (w) {
+        // then the winner's colour rolls smoothly over the screen
+        const p = easeInOut(Math.min(1, Math.max(0, (el - 120)/850)));
+        const far = Math.hypot(Math.max(w.x, W-w.x), Math.max(w.y, H-w.y)) + 20;
+        const core = R0 + 7 * easeOut(Math.min(1, el/225));
+        const pulse = reduceMotion ? 0 : Math.sin(t/260) * 6 * Math.min(1, el/850);
+        // the colour closes in from the edges and glides onto the chosen finger
+        const hole = far + (56 + pulse - far) * p;
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(w.x, w.y, Math.max(hole, 1), 0, Math.PI*2);
+        ctx.globalAlpha = alpha * Math.min(1, .3 + p);
+        ctx.fillStyle = hd(w.color); ctx.fill('evenodd');
+        ctx.restore(); ctx.globalAlpha = alpha;
+        disc(w.x, w.y, core, w.color);
+      }
+      return;
+    }
+
+    const m = mode();
+    const prog = state === 'counting' ? Math.min(1, (t - countStart)/COUNT_MS) : 0;
+    const teamColors = s.colors;
+    for (const [id, f] of fingers) {
+      const grow = reduceMotion ? 1 : easeBack(Math.min(1, (t - f.born)/260));
+      const lapT = state === 'counting' ? t - countStart : 0;
+      // once the first loading lap is full, the circle gently swells and shrinks until someone is chosen
+      const pulseOn = state === 'counting' ? Math.min(1, Math.max(0, (lapT - LAP_MS)/250)) : 0;
+      const r = R0 * grow * (1 + .07 * pulseOn * Math.sin((lapT - LAP_MS)/180));
+      const color = result && result.team ? teamColors[result.team.get(id)] : f.color;
+      const multi = result && result.chosen && !result.winner;
+      const picked = multi && result.chosen.has(id);
+      const k = result ? easeInOut(Math.min(1, (t - result.time)/400)) : 0;
+      const a = alpha * (multi && !picked ? 1 - .84*k : 1);
+      const rr = picked ? r * (1 + .3*k) + (reduceMotion ? 0 : Math.sin(t/220) * 4 * k) : r;
+      ctx.globalAlpha = a;
+
+      // ripple when a finger lands
+      const age = t - f.born;
+      if (age < 650 && !result) {
+        const e = easeOut(age/650);
+        ctx.globalAlpha = a * (1 - e) * .45; ctx.strokeStyle = hd(color); ctx.lineWidth = 3;
+        circle(f.x, f.y, rr + 10 + e*46); ctx.stroke(); ctx.globalAlpha = a;
+      }
+      disc(f.x, f.y, rr, color);
+
+      // loading ring: appears only once the countdown starts, fills from two sides,
+      // then keeps going in a darker shade, lap after lap
+      ctx.lineCap = 'round'; ctx.globalAlpha = a;
+      if (picked) { ctx.strokeStyle = hd(color); ctx.lineWidth = 4; circle(f.x, f.y, rr + RING); ctx.stroke(); }
+      if (state === 'counting') {
+        const lap = Math.floor(lapT / LAP_MS), lp = easeInOut((lapT % LAP_MS) / LAP_MS);
+        const shade = n => hd(n % 2 ? color : lightHex(color));
+        const start = lap % 2 ? Math.PI/2 : -Math.PI/2;
+        const ringR = R0 * grow + RING;
+        ctx.lineWidth = 8;
+        if (lap > 0) { ctx.strokeStyle = shade(lap - 1); circle(f.x, f.y, ringR); ctx.stroke(); }
+        ctx.strokeStyle = shade(lap);
+        ctx.beginPath(); ctx.arc(f.x, f.y, ringR, start, start + lp*Math.PI); ctx.stroke();
+        ctx.beginPath(); ctx.arc(f.x, f.y, ringR, start - lp*Math.PI, start); ctx.stroke();
+      }
+
+      // labels for teams and order
+      let label = null;
+      if (result && result.team) label = 'ABC'[result.team.get(id)];
+      if (result && result.rank) label = String(result.rank.get(id));
+      if (label) {
+        ctx.fillStyle = ink(color);
+        ctx.font = '800 28px "Bricolage Grotesque", system-ui, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(label, f.x, f.y + 2);
+      }
+    }
+    void m;
+  }
+
+  function loop(t){
+    if (state === 'waiting' && t - lastChange > SETTLE_MS) { state = 'counting'; countStart = t; nextTick = t; }
+    if (state === 'counting') {
+      if (t >= nextTick) { sfx('tick'); nextTick += (PACKS[save.sound] || PACKS.klassiek).interval; }
+      if (t - countStart >= COUNT_MS) decide(t);
+    }
+    if (state === 'hold' && t - holdStart > HOLD_MS) { state = 'fading'; fadeStart = t; }
+    if (state === 'fading' && t - fadeStart > FADE_MS) resetAll();
+    draw(t);
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- UI ----------
+  const $ = id => document.getElementById(id);
+  const hint = $('hint'), caption = $('caption'), top = $('top'), bottom = $('bottom');
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  function applySkin(){
+    const s = skin();
+    document.documentElement.style.setProperty('--skin-bg', hd(s.bg));
+    document.documentElement.style.setProperty('--skin-fg', hd(s.fg));
+    const meta = document.querySelector('meta[name="theme-color"]') || Object.assign(document.head.appendChild(document.createElement('meta')), {name:'theme-color'});
+    meta.content = s.bg;
+  }
+
+  function ui(){
+    const n = fingers.size, m = mode(), playing = n > 0 || state !== 'idle';
+    top.classList.toggle('hidden', playing);
+    bottom.classList.toggle('hidden', playing);
+
+    const showHint = state === 'idle';
+    hint.classList.toggle('hidden', !showHint);
+    if (n === 0) {
+      $('hintTitle').textContent = finePointer ? 'Klik op een paar plekken' : 'Leg je vingers op het scherm';
+      $('hintSub').textContent = finePointer ? 'Elke klik is een vinger. Wacht even en de app kiest.' : 'Houd ze stil en de app kiest.';
+    } else {
+      $('hintTitle').textContent = 'Nog iemand?';
+      $('hintSub').textContent = `Minstens ${need()} vingers nodig.`;
+    }
+
+    if ((state === 'result' || state === 'hold') && result) {
+      const again = finePointer ? 'Klik voor een nieuwe ronde' : (state === 'hold' ? 'Tik op het scherm voor een nieuwe ronde' : 'Laat los en bekijk het rustig');
+      const title = result.chosen && result.chosen.size > 1 ? `${result.chosen.size} gekozen!` : {winner:'Gekozen!', teams2:'Teams verdeeld', teams3:'Teams verdeeld', order:'Volgorde bepaald'}[result.mode.id];
+      caption.innerHTML = `${title}<small>${again}</small>`;
+      const w = result.winner && fingers.get(result.winner);
+      caption.style.color = w ? ink(w.color) : skin().fg;
+      caption.style.transitionDelay = state === 'result' ? (w ? '1s' : '.3s') : '0s';
+      caption.classList.remove('hidden');
+    } else { caption.style.transitionDelay = '0s'; caption.classList.add('hidden'); }
+  }
+
+  function renderModes(){
+    const wrap = $('modes'); wrap.innerHTML = '';
+    MODES.forEach(m => {
+      const b = document.createElement('button');
+      b.className = 'mode'; b.textContent = m.label; b.setAttribute('aria-pressed', String(m.id === save.mode));
+      b.onclick = () => { save.mode = m.id; persist(); renderModes(); };
+      wrap.appendChild(b);
+    });
+    const picks = $('picks'); picks.innerHTML = '';
+    picks.style.display = save.mode === 'winner' ? 'flex' : 'none';
+    if (save.mode === 'winner') {
+      const lab = document.createElement('span'); lab.className = 'picks-label'; lab.textContent = 'Hoeveel kiezen?';
+      picks.appendChild(lab);
+      [1,2,3,4].forEach(k => {
+        const b = document.createElement('button');
+        b.className = 'mode pick'; b.textContent = String(k);
+        b.setAttribute('aria-pressed', String((save.pick || 1) === k)); b.setAttribute('aria-label', `${k} kiezen`);
+        b.onclick = () => { save.pick = k; persist(); renderModes(); };
+        picks.appendChild(b);
+      });
+    }
+  }
+
+  // ---------- Kit shop ----------
+  const toastEl = $('toast'); let toastTimer;
+  function toast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800); }
+
+  function swatch(s){
+    const dots = s.colors.slice(0,4).map((c,i) => `<i style="background:${c};left:${[6,30,6,30][i]}px;top:${[6,6,30,30][i]}px;${s.glow?`box-shadow:0 0 8px ${c}`:''}"></i>`).join('');
+    return `<div class="swatch" style="background:${s.bg}">${dots}</div>`;
+  }
+  function actionBtn(item, kind){
+    const active = (kind === 'skin' && save.skin === item.id) || (kind === 'sound' && save.sound === item.id);
+    if (kind === 'bundle') return owns(item) ? `<button class="act" disabled>Gekocht</button>` : `<button class="act" data-buy="${item.id}" data-kind="bundle">${eur(item.price)}</button>`;
+    if (active) return `<button class="act" disabled>In gebruik</button>`;
+    if (owns(item)) return `<button class="act ghost" data-use="${item.id}" data-kind="${kind}">Gebruiken</button>`;
+    return `<button class="act" data-buy="${item.id}" data-kind="${kind}">${eur(item.price)}</button>`;
+  }
+  function customPanel(){
+    const slot = (id, label) => {
+      const has = !!custom[id], rec = recSlot === id;
+      return `<div class="slot"><b>${label}<small>${rec ? 'Opnemen… tik op Stop' : has ? 'Eigen geluid ingesteld' : 'Nog leeg, je hoort het standaardgeluid'}</small></b>
+        <button class="mini${rec ? ' rec' : ''}" data-rec="${id}">${rec ? 'Stop' : 'Opnemen'}</button>
+        <button class="mini" data-file="${id}">Bestand</button>
+        ${has ? `<button class="mini" data-play="${id}" aria-label="Afspelen">▶</button><button class="mini" data-clear="${id}">Wis</button>` : ''}</div>`;
+    };
+    return `<div class="custom">${slot('add','Vinger erop')}${slot('win','Gekozen')}</div>`;
+  }
+  function renderShop(){
+    const body = $('shopBody');
+    body.innerHTML = `
+      <p class="note">Alle kits zijn tijdelijk gratis. Alles werkt offline.</p>
+      <h3>Skins</h3>
+      ${SKINS.map(s => `<div class="row">${swatch(s)}<div class="meta"><b>${s.name}</b><span>${s.desc}</span></div>${actionBtn(s,'skin')}</div>`).join('')}
+      <h3>Geluiden</h3>
+      ${SOUNDS.map(s => `<div class="row"><div class="icon" aria-hidden="true">${s.icon}</div><div class="meta"><b>${s.name}</b><span>${s.desc}</span>${s.id !== 'stil' ? `<br><button class="preview" data-preview="${s.id}">Luister</button>` : ''}</div>${actionBtn(s,'sound')}</div>`).join('')}
+      ${customPanel()}`;
+  }
+  $('shopBody').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    unlockAudio();
+    if (b.dataset.preview) { sfx('add', b.dataset.preview); setTimeout(() => sfx('win', b.dataset.preview), 250); return; }
+    if (b.dataset.rec) { toggleRecord(b.dataset.rec); return; }
+    if (b.dataset.file) { pickSlot = b.dataset.file; $('fileIn').click(); return; }
+    if (b.dataset.play) { playBuf(b.dataset.play, true); return; }
+    if (b.dataset.clear) { setCustom(b.dataset.clear, null); return; }
+    const kind = b.dataset.kind;
+    if (b.dataset.buy) {
+      const id = b.dataset.buy;
+      if (!save.owned.includes(id)) save.owned.push(id);
+      const item = [...SKINS, ...SOUNDS, BUNDLE].find(i => i.id === id);
+      if (kind === 'skin') save.skin = id;
+      if (kind === 'sound') save.sound = id;
+      toast(`Gekocht: ${item.name}`);
+    }
+    if (b.dataset.use) {
+      if (kind === 'skin') save.skin = b.dataset.use;
+      if (kind === 'sound') save.sound = b.dataset.use;
+    }
+    persist(); applySkin(); renderShop();
+  });
+  $('fileIn').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f && pickSlot) blobToCustom(pickSlot, f); });
+  const openShop = () => { renderShop(); $('sheet').classList.add('open'); $('scrim').classList.add('open'); $('closeShop').focus(); };
+  const closeShop = () => { $('sheet').classList.remove('open'); $('scrim').classList.remove('open'); $('openShop').focus(); };
+  $('openShop').onclick = openShop;
+  $('closeShop').onclick = closeShop;
+  $('scrim').onclick = closeShop;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeShop(); });
+
+  // ---------- Start ----------
+  applySkin(); renderModes(); ui(); requestAnimationFrame(loop);
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+</script>
+</body>
+</html>
